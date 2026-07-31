@@ -1,0 +1,11 @@
+{
+    "name": "team-performance-dashboard",
+    "private": true,
+    "type": "module",
+    "version": "1.0.0",
+    "description": "team dashboard with excel upload",
+    "dependencies": {
+          "@netlify/blobs": "^8.1.0",
+          "xlsx": "^0.18.5"
+    }
+}
