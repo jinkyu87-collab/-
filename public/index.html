@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+  <html lang="ko">
+  <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>경영실적 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    :root {
+      --bg: #F7F8FA;
+      --card-bg: #FFFFFF;
+      --border: #E2E5EA;
+      --text-primary: #1A1D23;
+    --text-secondary: #6B7280;
+    --text-tertiary: #9CA3AF;
+    --accent: #1A6BAB;
+    --accent-light: #E6F1FB;
+          --success: #1D9E75;
+    --danger: #D85A30;
+      }
+  * { box-sizing: border-box; }
+  body {
+        margin: 0;
+    font-family: -apple-system, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+}
+  .wrap {
+        max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+}
+  header { margin-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 26px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { font-size: 13px; color: var(--text-tertiary); margin: 0; }
+
+  .header-actions { display: flex; gap: 8px; }
+  .btn {
+        height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+  .btn:hover { border-color: var(--accent); background: var(--accent-light); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { opacity: 0.9; }
+
+  .controls {
+        display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .controls label {
+        font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 600;
+               }
+  select {
+        height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+  .summary-grid {
+        display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+  @media (max-width: 900px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+}
+  .summary-card {
+          background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .summary-card:hover {
+        border-color: var(--accent);
+    background: var(--accent-light);
+}
+  .summary-card.active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    box-shadow: 0 0 0 3px rgba(26, 107, 171, 0.1);
+  }
+  .summary-label {
+        font-size: 13px;
+    color: #1A1D23;
+    margin: 0 0 6px;
+    font-weight: 600;
+}
+  .summary-value {
+        font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: #1A1D23;
+    word-break: break-word;
+}
+  .summary-sub {
+        font-size: 13px;
+    color: #1A1D23;
+    margin: 0;
+    line-height: 1.5;
+}
+  .growth {
+        font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+  .growth.up { color: var(--success); background: #E1F5EE; }
+  .growth.down { color: var(--danger); background: #FAECE7; }
+
+  .company-section { margin-bottom: 30px; }
+  .company-layout {
+        display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    }
+      @media (max-width: 1000px) {
+    .company-layout { grid-template-columns: 1fr; }
+}
+  .chart-card, .ranking-card {
+        background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    }
+  .chart-title { font-size: 14px; font-weight: 700; margin: 0 0 12px; }
+  .chart-box { height: 380px; position: relative; }
+
+  .section-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 20px 0 8px;
+    font-weight: 600;
+}
+
+  .team-section { margin-bottom: 20px; }
+  .team-grid {
+        display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+    }
+  .team-card {
+        background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+  .team-card:hover {
+        border-color: var(--accent);
+    background: var(--accent-light);
+    transform: translateY(-2px);
+}
+  .team-card.active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    box-shadow: 0 0 0 3px rgba(26, 107, 171, 0.1);
+  }
+  .team-name {
+        font-size: 15px;
+    font-weight: 700;
+    color: #1A1D23;
+    margin: 0 0 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+}
+  .team-metric {
+        display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+  .team-value { font-weight: 700; color: #1A1D23; }
+  .team-value.positive { color: var(--success); }
+  .team-value.negative { color: var(--danger); }
+
+  .team-detail-section { display: none; margin-top: 20px; }
+  .team-detail-section.visible { display: block; }
+  .detail-header {
+        background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+  .detail-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0; }
+  .team-detail-wrapper {
+        display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+  @media (max-width: 1200px) {
+    .team-detail-wrapper { grid-template-columns: repeat(2, 1fr); }
+}
+  .detail-chart-card {
+          background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .detail-chart-title { font-size: 12px; font-weight: 600; margin: 0 0 8px; color: var(--text-secondary); }
+  .detail-chart-box { height: 220px; position: relative; }
+  .team-remarks {
+        background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+  .footnote { font-size: 12px; color: var(--text-tertiary); margin-top: 10px; }
+
+  /* 업로드 모달 */
+  .modal-backdrop {
+        display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    align-items: center; justify-content: center;
+    z-index: 100;
+}
+  .modal-backdrop.visible { display: flex; }
+  .modal {
+        background: var(--card-bg);
+    border-radius: 14px;
+    padding: 24px;
+    width: 400px;
+    max-width: 90vw;
+  }
+  .modal h2 { font-size: 17px; margin: 0 0 4px; }
+  .modal p.desc { font-size: 12px; color: var(--text-secondary); margin: 0 0 16px; }
+  .modal label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+  .modal input[type="password"], .modal input[type="file"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  .modal-msg { font-size: 12px; margin-top: 10px; }
+  .modal-msg.error { color: var(--danger); }
+  .modal-msg.success { color: var(--success); }
+  .loading-overlay {
+        position: fixed; inset: 0; background: rgba(255,255,255,0.6);
+    display: none; align-items: center; justify-content: center; font-size: 14px; z-index: 200;
+}
+  .loading-overlay.visible { display: flex; }
+</style>
+  </head>
+  <body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>경영실적 대시보드</h1>
+        <p class="subtitle">월별 전사 및 팀별 매출 현황 분석</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn primary" id="openUploadBtn">데이터 업데이트</button>
+      </div>
+    </header>
+
+    <div class="controls">
+      <label for="monthSelect">조회 월:</label>
+      <select id="monthSelect"></select>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card active" data-metric="attributed">
+        <p class="summary-label">매출액(귀속)</p>
+        <p class="summary-value" id="val-attributed">-</p>
+        <p class="summary-sub" id="sub-attributed"></p>
+      </div>
+      <div class="summary-card" data-metric="revenue">
+        <p class="summary-label">실적매출</p>
+        <p class="summary-value" id="val-revenue">-</p>
+        <p class="summary-sub" id="sub-revenue"></p>
+      </div>
+      <div class="summary-card" data-metric="profit">
+        <p class="summary-label">영업이익</p>
+        <p class="summary-value" id="val-profit">-</p>
+        <p class="summary-sub" id="sub-profit"></p>
+      </div>
+      <div class="summary-card" data-metric="pnl">
+        <p class="summary-label">손익</p>
+        <p class="summary-value" id="val-pnl">-</p>
+        <p class="summary-sub" id="sub-pnl"></p>
+      </div>
+    </div>
+
+    <div class="company-section">
+      <div class="company-layout">
+        <div class="chart-card">
+          <p class="chart-title">전사 월별 추이 (단위: 억원)</p>
+          <div class="chart-box"><canvas id="companyChart"></canvas></div>
+        </div>
+        <div class="ranking-card" id="teamRankings"></div>
+      </div>
+    </div>
+
+    <div class="team-section">
+      <p class="section-label">팀별 실적 (클릭하여 선택)</p>
+      <div class="team-grid" id="teamGrid"></div>
+    </div>
+
+    <div class="team-detail-section" id="teamDetailSection">
+      <div class="detail-header"><p class="detail-title" id="detailTitle"></p></div>
+      <div class="team-detail-wrapper">
+        <div class="detail-chart-card">
+          <p class="detail-chart-title">실적매출</p>
+          <div class="detail-chart-box"><canvas id="chart-revenue"></canvas></div>
+        </div>
+        <div class="detail-chart-card">
+          <p class="detail-chart-title">변동금</p>
+          <div class="detail-chart-box"><canvas id="chart-change"></canvas></div>
+        </div>
+        <div class="detail-chart-card">
+          <p class="detail-chart-title">이익금</p>
+          <div class="detail-chart-box"><canvas id="chart-profit"></canvas></div>
+        </div>
+        <div class="detail-chart-card">
+          <p class="detail-chart-title">인원</p>
+          <div class="detail-chart-box"><canvas id="chart-staff"></canvas></div>
+        </div>
+      </div>
+      <div id="remarksContainer"></div>
+    </div>
+
+    <p class="footnote">단위: 전사(억원) | 팀별 모든 항목(천원)</p>
+  </div>
+
+  <!-- 업로드 모달 -->
+  <div class="modal-backdrop" id="uploadModal">
+    <div class="modal">
+      <h2>이번 달 데이터 업데이트</h2>
+      <p class="desc">엑셀 템플릿에 이번 달 데이터를 입력한 뒤 업로드하세요. 전년 대비 수치는 저장된 과거 데이터에서 자동으로 계산됩니다.</p>
+      <label for="uploadPassword">비밀번호</label>
+      <input type="password" id="uploadPassword" placeholder="관리자 비밀번호" />
+      <label for="uploadFile">엑셀 파일 (.xlsx)</label>
+      <input type="file" id="uploadFile" accept=".xlsx,.xls" />
+      <div class="modal-msg" id="uploadMsg"></div>
+      <div class="modal-actions">
+        <button class="btn" id="cancelUploadBtn">취소</button>
+        <button class="btn primary" id="submitUploadBtn">업로드</button>
+      </div>
+    </div>
+  </div>
+  <div class="loading-overlay" id="loadingOverlay">불러오는 중…</div>
+
+  <script>
+  let DASHBOARD_DATA = null;
+let selectedMetric = 'attributed';
+let selectedTeam = null;
+let companyChart = null;
+let detailCharts = {};
+let TEAM_ORDER = [];
+
+function fmt(n) {
+    if (n === null || n === undefined) return '-';
+  return Math.round(n).toLocaleString('ko-KR');
+}
+function fmtOk(n) {
+    if (n === null || n === undefined) return '-';
+  return (Math.round(n / 100000000 * 10) / 10).toFixed(1);
+}
+
+async function loadData() {
+  const res = await fetch('/api/data', { cache: 'no-store' });
+  if (!res.ok) throw new Error('데이터를 불러오지 못했습니다.');
+  DASHBOARD_DATA = await res.json();
+  TEAM_ORDER = DASHBOARD_DATA.teams_list || [];
+}
+
+async function boot() {
+  document.getElementById('loadingOverlay').classList.add('visible');
+  try {
+    await loadData();
+  } catch (e) {
+    document.getElementById('loadingOverlay').textContent = '데이터를 불러오지 못했습니다. 새로고침 해주세요.';
+    return;
+  }
+  document.getElementById('loadingOverlay').classList.remove('visible');
+
+  const monthSelect = document.getElementById('monthSelect');
+  monthSelect.innerHTML = '';
+      DASHBOARD_DATA.months.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m; opt.textContent = m;
+    monthSelect.appendChild(opt);
+});
+  monthSelect.addEventListener('change', function() { render(this.value); });
+
+  document.querySelectorAll('.summary-card').forEach(card => {
+        card.addEventListener('click', function() {
+          document.querySelectorAll('.summary-card').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+      selectedMetric = this.dataset.metric;
+      drawCompanyChart(monthSelect.value);
+});
+    });
+
+  monthSelect.value = DASHBOARD_DATA.months[DASHBOARD_DATA.months.length - 1];
+  render(monthSelect.value);
+}
+
+function render(month) {
+    updateSummary(month);
+  setTimeout(() => {
+        drawCompanyChart(month);
+    renderTeams(month);
+}, 50);
+}
+
+function updateSummary(month) {
+    const company = DASHBOARD_DATA.company.find(c => c['월'] === month);
+  if (!company) return;
+  [
+{ metric: 'attributed', value: company['매출액(귀속)'], prev: company['전년_매출액(귀속)'] },
+{ metric: 'revenue', value: company['실적매출'], prev: company['전년_실적매출'] },
+{ metric: 'profit', value: company['영업이익'], prev: company['전년_영업이익'] },
+{ metric: 'pnl', value: company['손익'], prev: company['전년_손익'] }
+  ].forEach(item => {
+    const valEl = document.getElementById(`val-${item.metric}`);
+    const subEl = document.getElementById(`sub-${item.metric}`);
+    valEl.textContent = fmt(item.value);
+    if (item.prev && item.prev > 0) {
+      const change = item.value - item.prev;
+      const pct = ((change / item.prev) * 100).toFixed(1);
+      const sign = change >= 0 ? '+' : '';
+      const cls = change >= 0 ? 'up' : 'down';
+      subEl.innerHTML = `전년: ${fmt(item.prev)}<br><span class="growth ${cls}">${sign}${pct}%</span> <span>${sign}${fmt(change)}</span>`;
+} else {
+      subEl.innerHTML = '데이터없음';
+}
+});
+}
+
+function drawCompanyChart(month) {
+  const idx = DASHBOARD_DATA.months.indexOf(month);
+  const labels = DASHBOARD_DATA.months.slice(0, idx + 1);
+  let datasets = [];
+  let stepSize, maxValue, minValue;
+
+  const metricMap = {
+        attributed: { key: '매출액(귀속)', prevKey: '전년_매출액(귀속)', color: '#1A6BAB', step: 10, max: 120, min: 50 },
+              revenue: { key: '실적매출', prevKey: '전년_실적매출', color: '#1A6BAB', step: 10, max: 120, min: 0 },
+                    profit: { key: '영업이익', prevKey: '전년_영업이익', color: '#1D9E75', step: 1, max: 8, min: 0 },
+                          pnl: { key: '손익', prevKey: '전년_손익', color: '#D85A30', step: 1, max: 4, min: 0 }
+  };
+  const cfg = metricMap[selectedMetric];
+  stepSize = cfg.step; maxValue = cfg.max; minValue = cfg.min;
+  datasets = [
+{
+      label: { attributed: '매출액(귀속)', revenue: '실적매출', profit: '영업이익', pnl: '손익' }[selectedMetric],
+              data: labels.map(m => DASHBOARD_DATA.company.find(c => c['월'] === m)?.[cfg.key] || 0),
+              borderColor: cfg.color, backgroundColor: cfg.color + '15', borderWidth: 2.5, tension: 0.3, fill: true, pointRadius: 5, pointBackgroundColor: cfg.color
+        },
+        {
+              label: '전년 ' + { attributed: '매출액(귀속)', revenue: '실적매출', profit: '영업이익', pnl: '손익' }[selectedMetric],
+                      data: labels.map(m => DASHBOARD_DATA.company.find(c => c['월'] === m)?.[cfg.prevKey] || 0),
+                      borderColor: '#1A1D23', borderDash: [5, 5], borderWidth: 2, tension: 0.3, fill: false, pointRadius: 3, pointBackgroundColor: '#1A1D23'
+                }
+  ];
+
+  const canvas = document.getElementById('companyChart');
+  if (!canvas) return;
+  if (companyChart) companyChart.destroy();
+
+  companyChart = new Chart(canvas, {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top' },
+        tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } }
+},
+      scales: {
+        x: { ticks: { font: { size: 13 }, color: '#1A1D23' } },
+        y: {
+          beginAtZero: true,
+          min: minValue * 100000000,
+          max: maxValue * 100000000,
+          grid: { offset: true, drawBorder: false },
+          ticks: {
+            stepSize: stepSize * 100000000,
+            font: { size: 13 }, color: '#1A1D23', padding: 15,
+            callback: value => fmtOk(value) + '억'
+}
+}
+}
+},
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const data1 = chart.data.datasets[0].data;
+        const data2 = chart.data.datasets[1].data;
+        let currentColor, prevColor = '#1A1D23';
+        if (selectedMetric === 'profit') currentColor = '#0E7A4F';
+        else if (selectedMetric === 'pnl') currentColor = '#B84520';
+        else currentColor = '#1A6BAB';
+
+        chart.data.datasets.forEach((dataset, datasetIdx) => {
+          const meta = chart.getDatasetMeta(datasetIdx);
+          meta.data.forEach((point, idx) => {
+            const value = dataset.data[idx];
+            if (!value) return;
+            const val1 = data1[idx] || 0, val2 = data2[idx] || 0;
+            ctx.font = 'bold 15px sans-serif';
+            const diff = Math.abs(val1 - val2);
+            const pct = val1 > 0 ? (diff / val1) : 0;
+            if (datasetIdx === 0) {
+              ctx.fillStyle = currentColor;
+              let offsetY = pct < 0.02 ? -55 : pct < 0.05 ? -40 : -30;
+              ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+              ctx.fillText(fmtOk(value) + '억', point.x, point.y + offsetY);
+} else {
+              ctx.fillStyle = prevColor;
+              if (val2 > val1) {
+                let offsetY = pct < 0.02 ? -75 : pct < 0.05 ? -60 : -50;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+                ctx.fillText(fmtOk(value) + '억', point.x, point.y + offsetY);
+} else {
+                let offsetY = pct < 0.02 ? 40 : pct < 0.05 ? 35 : 30;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.fillText(fmtOk(value) + '억', point.x, point.y + offsetY);
+}
+}
+});
+});
+}
+}]
+});
+
+  showRankings(month);
+}
+
+function showRankings(month) {
+  const div = document.getElementById('teamRankings');
+  const teams = DASHBOARD_DATA.teams.filter(t => t['월'] === month);
+  const ranked = teams.map(t => ({ name: t['팀이름'], revenue: t['실적매출'] })).sort((a, b) => b.revenue - a.revenue);
+  const left = ranked.slice(0, 5), right = ranked.slice(5, 10);
+
+  let html = '<div style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #1A1D23;">1위~' + ranked.length + '위</div>';
+  html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
+  html += '<div>';
+  left.forEach((item, idx) => {
+    html += `<div style="margin: 2px 0; padding: 4px 0; border-bottom: 1px solid #E2E5EA; font-size: 13px;">
+      <strong style="color: #1A6BAB; font-size: 13px;">${idx + 1}위</strong> <span style="font-size: 13px; color: #1A1D23;">${item.name}</span><br>
+      <span style="font-size: 14px; font-weight: 700; color: #1A1D23;">${fmt(item.revenue)}</span></div>`;
+});
+  html += '</div><div>';
+  right.forEach((item, idx) => {
+    html += `<div style="margin: 2px 0; padding: 4px 0; border-bottom: 1px solid #E2E5EA; font-size: 13px;">
+      <strong style="color: #1A6BAB; font-size: 13px;">${idx + 6}위</strong> <span style="font-size: 13px; color: #1A1D23;">${item.name}</span><br>
+      <span style="font-size: 14px; font-weight: 700; color: #1A1D23;">${fmt(item.revenue)}</span></div>`;
+});
+  html += '</div></div>';
+  div.innerHTML = html;
+}
+
+function renderTeams(month) {
+  const grid = document.getElementById('teamGrid');
+  grid.innerHTML = '';
+  const teams = DASHBOARD_DATA.teams.filter(t => t['월'] === month);
+  TEAM_ORDER.forEach(name => {
+    const data = teams.find(t => t['팀이름'] === name);
+    if (!data) return;
+    grid.appendChild(createTeamCard(name, data, selectedTeam === name, month));
+});
+}
+
+function createTeamCard(name, data, isSelected, month) {
+  const card = document.createElement('div');
+  card.className = 'team-card';
+  if (isSelected) card.classList.add('active');
+  card.innerHTML = `
+    <p class="team-name">${name}</p>
+    <div class="team-metric"><span>실적매출</span><span class="team-value">${fmt(data['실적매출'])}</span></div>
+    <div class="team-metric"><span>변동금</span><span class="team-value ${data['변동금'] >= 0 ? 'positive' : 'negative'}">${data['변동금'] !== null ? fmt(data['변동금']) : '-'}</span></div>
+    <div class="team-metric"><span>이익금</span><span class="team-value ${data['이익금'] >= 0 ? 'positive' : 'negative'}">${data['이익금'] !== null ? fmt(data['이익금']) : '-'}</span></div>
+    <div class="team-metric"><span>인원</span><span class="team-value">${data['재직인원']}명</span></div>
+  `;
+  card.addEventListener('click', () => {
+    selectedTeam = name;
+    renderTeams(month);
+    showTeamDetail(name, month);
+});
+  return card;
+}
+
+function showTeamDetail(name, month) {
+  const idx = DASHBOARD_DATA.months.indexOf(month);
+  const labels = DASHBOARD_DATA.months.slice(0, idx + 1);
+  document.getElementById('detailTitle').textContent = `${name} - 월별 상세`;
+  document.getElementById('teamDetailSection').classList.add('visible');
+
+  const revenue = labels.map(m => DASHBOARD_DATA.teams.find(t => t['팀이름'] === name && t['월'] === m)?.['실적매출'] || 0);
+  const change = labels.map(m => DASHBOARD_DATA.teams.find(t => t['팀이름'] === name && t['월'] === m)?.['변동금'] || 0);
+  const profit = labels.map(m => DASHBOARD_DATA.teams.find(t => t['팀이름'] === name && t['월'] === m)?.['이익금'] || 0);
+  const staff = labels.map(m => DASHBOARD_DATA.teams.find(t => t['팀이름'] === name && t['월'] === m)?.['재직인원'] || 0);
+
+  drawTeamChart('chart-revenue', labels, revenue, '실적매출', '#1A6BAB');
+  drawTeamChart('chart-change', labels, change, '변동금', change.map(v => v >= 0 ? '#1D9E75' : '#D85A30'));
+  drawTeamChart('chart-profit', labels, profit, '이익금', profit.map(v => v >= 0 ? '#1A6BAB' : '#D85A30'));
+  drawTeamChart('chart-staff', labels, staff, '인원', '#6B7280', true);
+
+  const remarks = document.getElementById('remarksContainer');
+  remarks.innerHTML = '';
+  labels.forEach(m => {
+    const row = DASHBOARD_DATA.teams.find(t => t['팀이름'] === name && t['월'] === m);
+    if (row?.['특이사항']) {
+      const div = document.createElement('div');
+      div.className = 'team-remarks';
+      div.innerHTML = `<strong>${m}:</strong> ${row['특이사항']}`;
+      remarks.appendChild(div);
+}
+});
+  if (!remarks.innerHTML) remarks.innerHTML = '<div class="team-remarks">특이사항 없음</div>';
+}
+
+function drawTeamChart(id, labels, data, label, color, isStaff) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (detailCharts[id]) detailCharts[id].destroy();
+
+  const isMulti = Array.isArray(color);
+  const maxValue = Math.max(...data), minValue = Math.min(...data);
+  const absMax = Math.max(Math.abs(maxValue), Math.abs(minValue));
+  let stepSize = 100000;
+  if (id === 'chart-revenue') {
+    stepSize = absMax > 700000 ? 350000 : absMax > 500000 ? 300000 : absMax > 300000 ? 250000 : absMax > 200000 ? 200000 : absMax > 100000 ? 150000 : 100000;
+} else if (id === 'chart-change') {
+    stepSize = absMax > 100000 ? 50000 : absMax > 50000 ? 25000 : absMax > 20000 ? 10000 : 5000;
+} else if (id === 'chart-profit') {
+    stepSize = absMax > 200000 ? 100000 : absMax > 100000 ? 50000 : absMax > 50000 ? 25000 : absMax > 20000 ? 10000 : 5000;
+} else if (id === 'chart-staff') {
+    stepSize = undefined;
+}
+
+  const brighten = c => ({ '#1D9E75': '#7FD4A8', '#1A6BAB': '#7DB4D4', '#6B7280': '#B0B5C0', '#D85A30': '#E89968' }[c] || c);
+
+  detailCharts[id] = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: label, data: data,
+        backgroundColor: isMulti ? color.map(brighten) : brighten(color),
+        borderRadius: 6, borderSkipped: false, borderWidth: 0
+}]
+},
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)', titleFont: { size: 12 }, bodyFont: { size: 12 }, padding: 10,
+          callbacks: { label: ctx => fmt(ctx.parsed.x) }
+}
+},
+      scales: {
+        x: {
+          beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' },
+          ticks: {
+            ...(stepSize !== undefined && { stepSize }),
+            callback: value => isStaff ? value.toFixed(0) + '명' : fmt(value),
+            font: { size: 11 }
+}
+},
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+}
+},
+    plugins: [{
+      afterDraw(chart) {
+        const ctx = chart.ctx;
+        const chartArea = chart.chartArea;
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.data.forEach((point, idx) => {
+            const value = dataset.data[idx];
+            if (value === null || value === undefined || value === 0) return;
+            const text = isStaff ? value.toFixed(0) + '명' : fmt(value);
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textBaseline = 'middle';
+            const textWidth = ctx.measureText(text).width + 10;
+            const actualBarWidth = point.x - chartArea.left;
+            if (actualBarWidth > textWidth) { ctx.textAlign = 'right'; ctx.fillText(text, point.x - 8, point.y); }
+            else { ctx.textAlign = 'left'; ctx.fillText(text, point.x + 8, point.y); }
+});
+});
+}
+}]
+});
+}
+
+/* ---------- 업로드 모달 ---------- */
+const uploadModal = document.getElementById('uploadModal');
+document.getElementById('openUploadBtn').addEventListener('click', () => {
+  document.getElementById('uploadMsg').textContent = '';
+  document.getElementById('uploadMsg').className = 'modal-msg';
+  uploadModal.classList.add('visible');
+});
+document.getElementById('cancelUploadBtn').addEventListener('click', () => {
+  uploadModal.classList.remove('visible');
+});
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+});
+}
+
+document.getElementById('submitUploadBtn').addEventListener('click', async () => {
+  const msgEl = document.getElementById('uploadMsg');
+  const password = document.getElementById('uploadPassword').value;
+  const fileInput = document.getElementById('uploadFile');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    msgEl.textContent = '엑셀 파일을 선택해주세요.';
+    msgEl.className = 'modal-msg error';
+    return;
+}
+
+  msgEl.textContent = '업로드 중…';
+  msgEl.className = 'modal-msg';
+
+  try {
+    const base64 = await fileToBase64(file);
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password, base64 })
+});
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || '업로드에 실패했습니다.');
+
+    msgEl.textContent = `${result.month} 데이터가 반영되었습니다. (${result.teamCount}개 팀)`;
+    msgEl.className = 'modal-msg success';
+
+    await loadData();
+    const monthSelect = document.getElementById('monthSelect');
+    monthSelect.innerHTML = '';
+    DASHBOARD_DATA.months.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      monthSelect.appendChild(opt);
+});
+    monthSelect.value = DASHBOARD_DATA.months[DASHBOARD_DATA.months.length - 1];
+    render(monthSelect.value);
+
+    setTimeout(() => { uploadModal.classList.remove('visible'); }, 1200);
+} catch (err) {
+    msgEl.textContent = err.message || '업로드 중 오류가 발생했습니다.';
+    msgEl.className = 'modal-msg error';
+}
+});
+
+boot();
+</script>
+</body>
+</html>
