@@ -16,7 +16,7 @@
 이 저장소(레포) 안에 있지만, **완전히 별도의 Netlify 사이트**로 배포합니다 (기존 대시보드와 무관).
 
 1. Netlify → "Add new site" → "Import an existing project" → 이 GitHub 저장소 선택
-2. **Base directory**를 `tax-invoice` 로 지정 (중요 — 이걸 빼먹으면 기존 대시보드랑 충돌납니다)
+2. **Base directory**를 `taxinvoice` 로 지정 (중요 — 이걸 빼먹으면 기존 대시보드랑 충돌납니다)
    - Build command: `npm install` (자동 인식됨)
    - Publish directory: `public` (base 기준 상대경로)
    - Functions directory: `netlify/functions`
@@ -86,7 +86,7 @@ lib/providers/smartbill.js        스마트빌 실연동 - 개발가이드 받�
 ## 5. 로컬 미리보기 (선택)
 
 ```bash
-cd tax-invoice
+cd taxinvoice
 npm install
 npx netlify dev
 ```

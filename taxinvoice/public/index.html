@@ -60,6 +60,10 @@
     font-size: 13px; background: var(--card-bg); color: var(--text-primary);
   }
   input[type=file] { padding: 6px 8px; }
+  input[type=date] {
+    height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 13px; background: var(--card-bg); color: var(--text-primary);
+  }
   a.link { color: var(--accent); font-size: 13px; text-decoration: none; font-weight: 600; }
   a.link:hover { text-decoration: underline; }
 
@@ -134,6 +138,15 @@
         <button class="btn primary" id="issueBtn">선택 발행</button>
       </div>
     </div>
+    <div class="row" style="margin-bottom: 12px;">
+      <span class="muted" style="font-weight:600;">거래일자 검색</span>
+      <input type="date" id="fromDate" />
+      <span class="muted">~</span>
+      <input type="date" id="toDate" />
+      <button class="btn" id="searchDateBtn">검색</button>
+      <button class="btn" id="thisMonthBtn">이번 달</button>
+      <button class="btn" id="resetDateBtn">초기화</button>
+    </div>
     <div id="issueMsg"></div>
     <div class="table-scroll">
       <table>
@@ -175,7 +188,14 @@ function statusBadge(s) {
 }
 
 async function loadList() {
-  const res = await fetch("/api/tax/list" + (currentStatus ? `?status=${currentStatus}` : ""));
+  const params = new URLSearchParams();
+  if (currentStatus) params.set("status", currentStatus);
+  const from = $("#fromDate").value;
+  const to = $("#toDate").value;
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  const res = await fetch("/api/tax/list" + (qs ? `?${qs}` : ""));
   const data = await res.json();
   if (!res.ok) { showMsg("issueMsg", "err", data.error || "목록을 불러오지 못했습니다."); return; }
   currentList = data.invoices;
@@ -243,6 +263,27 @@ $("#selectAll").addEventListener("change", (e) => {
 });
 
 $("#refreshBtn").addEventListener("click", loadList);
+
+$("#searchDateBtn").addEventListener("click", loadList);
+
+$("#thisMonthBtn").addEventListener("click", () => {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  $("#fromDate").value = toDateInput(first);
+  $("#toDate").value = toDateInput(last);
+  loadList();
+});
+
+$("#resetDateBtn").addEventListener("click", () => {
+  $("#fromDate").value = "";
+  $("#toDate").value = "";
+  loadList();
+});
+
+function toDateInput(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 $("#uploadBtn").addEventListener("click", async () => {
   const file = $("#fileInput").files[0];
