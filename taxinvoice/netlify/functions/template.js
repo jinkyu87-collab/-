@@ -1,7 +1,12 @@
 import * as XLSX from "xlsx";
+import { loadSuppliers } from "../../lib/suppliers.js";
 
 export default async () => {
+  const suppliers = await loadSuppliers();
+  const codes = suppliers.map((s) => s.code);
+
   const headers = [
+    "발행법인",
     "거래처명",
     "사업자등록번호",
     "대표자명",
@@ -16,6 +21,7 @@ export default async () => {
     "비고",
   ];
   const sample = [
+    codes[0] || "법인A",
     "샘플상사",
     "1234567890",
     "홍길동",
@@ -27,10 +33,13 @@ export default async () => {
     1000000,
     "",
     "",
-    "공급가액/세액은 비워두면 자동 계산됩니다",
+    "발행법인은 등록된 법인 코드로 정확히 입력 (공급가액/세액은 비워두면 자동 계산됩니다)",
+  ];
+  const noteRow = [
+    `등록된 발행법인 코드: ${codes.join(", ")} — "법인 관리"에서 확인/수정 가능`,
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, sample, [], noteRow]);
   ws["!cols"] = headers.map(() => ({ wch: 16 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "발행요청");

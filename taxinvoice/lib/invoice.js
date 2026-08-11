@@ -25,6 +25,7 @@ export async function saveInvoices(list) {
 export function normalizeRow(raw, rowIndex) {
   const errors = [];
 
+  const supplierCode = str(raw["발행법인"]);
   const companyName = str(raw["거래처명"]);
   const bizNoRaw = str(raw["사업자등록번호"]);
   const bizNo = bizNoRaw.replace(/[^0-9]/g, "");
@@ -40,6 +41,7 @@ export function normalizeRow(raw, rowIndex) {
   let supplyAmount = numOrNull(raw["공급가액"]);
   let taxAmount = numOrNull(raw["세액"]);
 
+  if (!supplierCode) errors.push("발행법인을 입력(선택)해주세요.");
   if (!companyName) errors.push("거래처명이 비어있습니다.");
   if (!bizNo || bizNo.length !== 10) errors.push("사업자등록번호는 숫자 10자리여야 합니다.");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push("이메일 형식이 올바르지 않습니다.");
@@ -64,6 +66,7 @@ export function normalizeRow(raw, rowIndex) {
     errors,
     rowIndex,
     record: {
+      supplierCode,
       companyName,
       bizNo,
       ceoName: ceoName || null,
@@ -81,9 +84,9 @@ export function normalizeRow(raw, rowIndex) {
   };
 }
 
-// 같은 거래처+거래일자+합계금액+품목명 조합이 이미 있으면 중복 의심으로 표시(차단은 하지 않음)
+// 같은 발행법인+거래처+거래일자+합계금액+품목명 조합이 이미 있으면 중복 의심으로 표시(차단은 하지 않음)
 export function duplicateKey(record) {
-  return [record.companyName, record.transactionDate, record.totalAmount, record.itemName]
+  return [record.supplierCode, record.companyName, record.transactionDate, record.totalAmount, record.itemName]
     .map((v) => String(v ?? "").trim())
     .join("|");
 }

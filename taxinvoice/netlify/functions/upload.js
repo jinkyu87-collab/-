@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { checkPassword } from "../../lib/auth.js";
 import { loadInvoices, saveInvoices, normalizeRow, duplicateKey } from "../../lib/invoice.js";
+import { loadSuppliers, findSupplier } from "../../lib/suppliers.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "POST 요청만 지원합니다." }, 405);
@@ -30,6 +31,7 @@ export default async (req) => {
 
   const existing = await loadInvoices();
   const existingKeys = new Set(existing.map((r) => duplicateKey(r)));
+  const suppliers = await loadSuppliers();
 
   const added = [];
   const rowErrors = [];
@@ -43,6 +45,17 @@ export default async (req) => {
       rowErrors.push({ row: rowIndex, errors });
       return;
     }
+
+    const supplier = findSupplier(suppliers, record.supplierCode);
+    if (!supplier) {
+      const validCodes = suppliers.map((s) => s.code).join(", ");
+      rowErrors.push({
+        row: rowIndex,
+        errors: [`발행법인 "${record.supplierCode}"과 일치하는 등록된 법인이 없습니다. (등록된 법인: ${validCodes})`],
+      });
+      return;
+    }
+
     const key = duplicateKey(record);
     const isDuplicate = existingKeys.has(key);
     if (isDuplicate) duplicates.push(rowIndex);
@@ -50,11 +63,14 @@ export default async (req) => {
     added.push({
       id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       ...record,
+      // 발행 시점에 법인 정보가 바뀌어도 이 건의 계산서에는 업로드 당시 정보가 그대로 남도록 스냅샷 저장
+      supplier,
       status: "pending",
       duplicateSuspected: isDuplicate,
       uploadedAt: now,
       issuedAt: null,
       confirmNum: null,
+      invoiceViewUrl: null,
       errorMessage: null,
     });
     existingKeys.add(key);

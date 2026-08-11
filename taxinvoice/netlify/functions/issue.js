@@ -33,6 +33,9 @@ export default async (req) => {
         inv.status = "issued";
         inv.issuedAt = new Date().toISOString();
         inv.confirmNum = r.confirmNum;
+        // 실연동(스마트빌 등) provider가 실제 계산서 조회 URL을 주면 그걸 저장해서
+        // 화면에서 그 링크로 바로 연결(내부 미리보기 대신 진짜 문서로 안내)
+        inv.invoiceViewUrl = r.viewUrl || null;
         inv.errorMessage = null;
       } else {
         inv.status = "failed";
