@@ -1,0 +1,11 @@
+{
+  "name": "tax-invoice-auto",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "세금계산서 자동발행 프로그램 (엑셀 업로드 -> 대기목록 -> 발행)",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "xlsx": "^0.18.5"
+  }
+}

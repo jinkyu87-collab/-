@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>세금계산서 자동발행</title>
+<style>
+  :root {
+    --bg: #F7F8FA;
+    --card-bg: #FFFFFF;
+    --border: #E2E5EA;
+    --text-primary: #1A1D23;
+    --text-secondary: #6B7280;
+    --text-tertiary: #9CA3AF;
+    --accent: #1A6BAB;
+    --accent-light: #E6F1FB;
+    --success: #1D9E75;
+    --success-light: #E4F5EF;
+    --danger: #D85A30;
+    --danger-light: #FBEAE3;
+    --warn: #B98900;
+    --warn-light: #FBF3DA;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 24px 16px 60px; }
+  header { margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 700; margin: 0 0 4px; }
+  .subtitle { font-size: 13px; color: var(--text-tertiary); margin: 0 0 20px; }
+  .mode-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 10px;
+    border-radius: 999px; background: var(--warn-light); color: var(--warn); margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 18px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; }
+
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn {
+    height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card-bg); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); background: var(--accent-light); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { opacity: .9; }
+  .btn.danger { color: var(--danger); }
+  .btn.danger:hover { border-color: var(--danger); background: var(--danger-light); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  input[type=password], input[type=file] {
+    height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 13px; background: var(--card-bg); color: var(--text-primary);
+  }
+  input[type=file] { padding: 6px 8px; }
+  a.link { color: var(--accent); font-size: 13px; text-decoration: none; font-weight: 600; }
+  a.link:hover { text-decoration: underline; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .tile { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px; }
+  .tile .value { font-size: 22px; font-weight: 700; }
+  @media (max-width: 800px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tab {
+    padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--card-bg);
+    font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  th { color: var(--text-secondary); font-weight: 600; position: sticky; top: 0; background: var(--card-bg); }
+  tbody tr:hover { background: var(--accent-light); }
+  .table-scroll { overflow-x: auto; max-height: 560px; overflow-y: auto; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .badge.pending { background: var(--warn-light); color: var(--warn); }
+  .badge.issued { background: var(--success-light); color: var(--success); }
+  .badge.failed { background: var(--danger-light); color: var(--danger); }
+  .badge.dup { background: var(--danger-light); color: var(--danger); margin-left: 4px; }
+
+  .msg { font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; white-space: pre-line; }
+  .msg.ok { background: var(--success-light); color: var(--success); }
+  .msg.err { background: var(--danger-light); color: var(--danger); }
+  .muted { color: var(--text-tertiary); font-size: 12px; }
+  .num { text-align: right; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>세금계산서 자동발행<span id="modeBadge" class="mode-badge" style="display:none">모의발행 모드</span></h1>
+    <p class="subtitle">엑셀 업로드 → 대기목록 확인 → 선택 발행. 스마트빌 API 연동 전까지는 모의발행으로 흐름을 테스트합니다.</p>
+  </header>
+
+  <div class="card">
+    <h2>1. 발행 대상 업로드</h2>
+    <div class="row">
+      <input type="password" id="password" placeholder="비밀번호 (설정된 경우)" />
+      <input type="file" id="fileInput" accept=".xlsx,.xls" />
+      <button class="btn primary" id="uploadBtn">엑셀 업로드</button>
+      <a class="link" id="templateLink" href="/api/tax/template">📄 엑셀 템플릿 다운로드</a>
+    </div>
+    <div id="uploadMsg"></div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="tile"><div class="label">전체</div><div class="value" id="cntAll">0</div></div>
+    <div class="tile"><div class="label">발행 대기</div><div class="value" id="cntPending">0</div></div>
+    <div class="tile"><div class="label">발행 완료</div><div class="value" id="cntIssued">0</div></div>
+    <div class="tile"><div class="label">발행 실패</div><div class="value" id="cntFailed">0</div></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content: space-between; margin-bottom: 12px;">
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-status="">전체</div>
+        <div class="tab" data-status="pending">발행 대기</div>
+        <div class="tab" data-status="issued">발행 완료</div>
+        <div class="tab" data-status="failed">발행 실패</div>
+      </div>
+      <div class="row">
+        <button class="btn" id="refreshBtn">새로고침</button>
+        <button class="btn danger" id="removeBtn">선택 삭제 (대기건만)</button>
+        <button class="btn primary" id="issueBtn">선택 발행</button>
+      </div>
+    </div>
+    <div id="issueMsg"></div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll" /></th>
+            <th>상태</th>
+            <th>거래처명</th>
+            <th>사업자번호</th>
+            <th>이메일</th>
+            <th>거래일자</th>
+            <th>품목명</th>
+            <th class="num">공급가액</th>
+            <th class="num">세액</th>
+            <th class="num">합계</th>
+            <th>확인번호 / 사유</th>
+            <th>업로드일시</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="muted" id="rowCount"></p>
+  </div>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+let currentStatus = "";
+let currentList = [];
+
+function fmt(n) {
+  return n === null || n === undefined ? "-" : Number(n).toLocaleString("ko-KR");
+}
+
+function statusBadge(s) {
+  const label = { pending: "대기", issued: "발행완료", failed: "실패" }[s] || s;
+  return `<span class="badge ${s}">${label}</span>`;
+}
+
+async function loadList() {
+  const res = await fetch("/api/tax/list" + (currentStatus ? `?status=${currentStatus}` : ""));
+  const data = await res.json();
+  if (!res.ok) { showMsg("issueMsg", "err", data.error || "목록을 불러오지 못했습니다."); return; }
+  currentList = data.invoices;
+  renderTable();
+  await refreshCounts();
+}
+
+async function refreshCounts() {
+  const res = await fetch("/api/tax/list");
+  const data = await res.json();
+  if (!res.ok) return;
+  const all = data.invoices;
+  $("#cntAll").textContent = all.length;
+  $("#cntPending").textContent = all.filter(r => r.status === "pending").length;
+  $("#cntIssued").textContent = all.filter(r => r.status === "issued").length;
+  $("#cntFailed").textContent = all.filter(r => r.status === "failed").length;
+}
+
+function renderTable() {
+  const tbody = $("#tbody");
+  tbody.innerHTML = currentList.map(inv => `
+    <tr data-id="${inv.id}">
+      <td><input type="checkbox" class="rowchk" data-id="${inv.id}" /></td>
+      <td>${statusBadge(inv.status)}${inv.duplicateSuspected ? '<span class="badge dup">중복의심</span>' : ""}</td>
+      <td>${escapeHtml(inv.companyName)}</td>
+      <td>${escapeHtml(inv.bizNo)}</td>
+      <td>${escapeHtml(inv.email)}</td>
+      <td>${escapeHtml(inv.transactionDate)}</td>
+      <td>${escapeHtml(inv.itemName)}</td>
+      <td class="num">${fmt(inv.supplyAmount)}</td>
+      <td class="num">${fmt(inv.taxAmount)}</td>
+      <td class="num">${fmt(inv.totalAmount)}</td>
+      <td>${escapeHtml(inv.confirmNum || inv.errorMessage || "-")}</td>
+      <td>${inv.uploadedAt ? inv.uploadedAt.slice(0, 16).replace("T", " ") : "-"}</td>
+    </tr>
+  `).join("");
+  $("#rowCount").textContent = `${currentList.length}건 표시 중`;
+  $("#selectAll").checked = false;
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function showMsg(elId, cls, text) {
+  $(`#${elId}`).innerHTML = `<div class="msg ${cls}">${escapeHtml(text)}</div>`;
+}
+
+function getSelectedIds() {
+  return Array.from(document.querySelectorAll(".rowchk:checked")).map(el => el.dataset.id);
+}
+
+$("#tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  tab.classList.add("active");
+  currentStatus = tab.dataset.status;
+  loadList();
+});
+
+$("#selectAll").addEventListener("change", (e) => {
+  document.querySelectorAll(".rowchk").forEach(el => el.checked = e.target.checked);
+});
+
+$("#refreshBtn").addEventListener("click", loadList);
+
+$("#uploadBtn").addEventListener("click", async () => {
+  const file = $("#fileInput").files[0];
+  if (!file) { showMsg("uploadMsg", "err", "엑셀 파일을 선택해주세요."); return; }
+  const password = $("#password").value;
+
+  const base64 = await fileToBase64(file);
+  $("#uploadBtn").disabled = true;
+  try {
+    const res = await fetch("/api/tax/upload", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password, base64 }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showMsg("uploadMsg", "err", data.error || "업로드 실패"); return; }
+
+    let text = `추가됨: ${data.addedCount}건 / 오류: ${data.errorCount}건 / 중복의심: ${data.duplicateCount}건`;
+    if (data.errors.length) {
+      text += "\n\n[오류 상세]\n" + data.errors.map(e => `- ${e.row}행: ${e.errors.join(", ")}`).join("\n");
+    }
+    showMsg("uploadMsg", data.errorCount ? "err" : "ok", text);
+    $("#fileInput").value = "";
+    await loadList();
+  } catch (err) {
+    showMsg("uploadMsg", "err", String(err.message || err));
+  } finally {
+    $("#uploadBtn").disabled = false;
+  }
+});
+
+$("#issueBtn").addEventListener("click", async () => {
+  const ids = getSelectedIds();
+  if (!ids.length) { showMsg("issueMsg", "err", "발행할 항목을 선택해주세요."); return; }
+  if (!confirm(`선택한 ${ids.length}건을 발행하시겠습니까?`)) return;
+  const password = $("#password").value;
+
+  $("#issueBtn").disabled = true;
+  try {
+    const res = await fetch("/api/tax/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password, ids }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showMsg("issueMsg", "err", data.error || "발행 실패"); return; }
+
+    if (data.provider === "mock") {
+      $("#modeBadge").style.display = "inline-block";
+    } else {
+      $("#modeBadge").style.display = "none";
+    }
+    showMsg("issueMsg", data.failCount ? "err" : "ok",
+      `[${data.provider}] 성공 ${data.successCount}건 / 실패 ${data.failCount}건`);
+    await loadList();
+  } catch (err) {
+    showMsg("issueMsg", "err", String(err.message || err));
+  } finally {
+    $("#issueBtn").disabled = false;
+  }
+});
+
+$("#removeBtn").addEventListener("click", async () => {
+  const ids = getSelectedIds();
+  if (!ids.length) { showMsg("issueMsg", "err", "삭제할 항목을 선택해주세요."); return; }
+  if (!confirm(`선택한 ${ids.length}건을 삭제하시겠습니까? (이미 발행된 건은 삭제되지 않습니다)`)) return;
+  const password = $("#password").value;
+
+  const res = await fetch("/api/tax/remove", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password, ids }),
+  });
+  const data = await res.json();
+  if (!res.ok) { showMsg("issueMsg", "err", data.error || "삭제 실패"); return; }
+  showMsg("issueMsg", "ok", `삭제됨: ${data.removedCount}건${data.blockedCount ? ` / 발행완료건이라 제외됨: ${data.blockedCount}건` : ""}`);
+  await loadList();
+});
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+loadList();
+</script>
+</body>
+</html>

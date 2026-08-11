@@ -1,0 +1,9 @@
+# Netlify에서 새 사이트를 만들 때 "Base directory"를 tax-invoice 로 지정하세요.
+# (레포 루트의 대시보드 사이트와는 별개의 사이트로 배포됩니다.)
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+  command = "npm install"
+
+[functions]
+  node_bundler = "esbuild"
