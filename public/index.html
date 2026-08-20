@@ -559,27 +559,38 @@ function drawCompanyChart(month) {
 }
 
 function showRankings(month) {
-  const div = document.getElementById('teamRankings');
-  const teams = DASHBOARD_DATA.teams.filter(t => t['월'] === month);
-  const ranked = teams.map(t => ({ name: t['팀이름'], revenue: t['실적매출'] })).sort((a, b) => b.revenue - a.revenue);
-  const left = ranked.slice(0, 5), right = ranked.slice(5, 10);
+    const div = document.getElementById('teamRankings');
+    const teams = DASHBOARD_DATA.teams.filter(t => t['월'] === month && t['실적매출'] !== null && t['실적매출'] !== undefined);
 
-  let html = '<div style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #1A1D23;">1위~' + ranked.length + '위</div>';
-  html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
-  html += '<div>';
-  left.forEach((item, idx) => {
-    html += `<div style="margin: 2px 0; padding: 4px 0; border-bottom: 1px solid #E2E5EA; font-size: 13px;">
-      <strong style="color: #1A6BAB; font-size: 13px;">${idx + 1}위</strong> <span style="font-size: 13px; color: #1A1D23;">${item.name}</span><br>
-      <span style="font-size: 14px; font-weight: 700; color: #1A1D23;">${fmt(item.revenue)}</span></div>`;
-});
-  html += '</div><div>';
-  right.forEach((item, idx) => {
-    html += `<div style="margin: 2px 0; padding: 4px 0; border-bottom: 1px solid #E2E5EA; font-size: 13px;">
-      <strong style="color: #1A6BAB; font-size: 13px;">${idx + 6}위</strong> <span style="font-size: 13px; color: #1A1D23;">${item.name}</span><br>
-      <span style="font-size: 14px; font-weight: 700; color: #1A1D23;">${fmt(item.revenue)}</span></div>`;
-});
-  html += '</div></div>';
-  div.innerHTML = html;
+    const byName = new Map();
+    teams.forEach(t => byName.set(t['팀이름'], t));
+
+    const ranked = Array.from(byName.values()).map(t => ({ name: t['팀이름'], revenue: t['실적매출'] })).sort((a, b) => b.revenue - a.revenue);
+
+    if (!ranked.length) {
+          div.innerHTML = '<div style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #1A1D23;">팀별 순위</div><p style="font-size: 13px; color: #6B7280; margin: 0;">이번 달 팀별 데이터가 아직 없습니다.</p>';
+          return;
+    }
+
+    const shown = Math.min(ranked.length, 10);
+    const left = ranked.slice(0, 5), right = ranked.slice(5, 10);
+
+    let html = '<div style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #1A1D23;">1위~' + shown + '위</div>';
+    html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">';
+    html += '<div>';
+    left.forEach((item, idx) => {
+          html += `<div style="margin: 2px 0; padding: 4px 0; border-bottom: 1px solid #E2E5EA; font-size: 13px;">
+                <strong style="color: #1A6BAB; font-size: 13px;">${idx + 1}위</strong> <span style="font-size: 13px; color: #1A1D23;">${item.name}</span><br>
+                      <span style="font-size: 14px; font-weight: 700; color: #1A1D23;">${fmt(item.revenue)}</span></div>`;
+    });
+    html += '</div><div>';
+    right.forEach((item, idx) => {
+          html += `<div style="margin: 2px 0; padding: 4px 0; border-bottom: 1px solid #E2E5EA; font-size: 13px;">
+                <strong style="color: #1A6BAB; font-size: 13px;">${idx + 6}위</strong> <span style="font-size: 13px; color: #1A1D23;">${item.name}</span><br>
+                      <span style="font-size: 14px; font-weight: 700; color: #1A1D23;">${fmt(item.revenue)}</span></div>`;
+    });
+    html += '</div></div>';
+    div.innerHTML = html;
 }
 
 function renderTeams(month) {
