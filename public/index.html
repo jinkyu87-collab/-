@@ -625,7 +625,7 @@ function createTeamCard(name, data, isSelected, month) {
 
 function showTeamDetail(name, month) {
   const idx = DASHBOARD_DATA.months.indexOf(month);
-  const labels = DASHBOARD_DATA.months.slice(0, idx + 1);
+    const labels = DASHBOARD_DATA.months.slice(Math.max(0, idx + 1 - 13), idx + 1);
   document.getElementById('detailTitle').textContent = `${name} - 월별 상세`;
   document.getElementById('teamDetailSection').classList.add('visible');
 
