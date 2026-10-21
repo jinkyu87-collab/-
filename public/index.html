@@ -470,7 +470,19 @@ function drawCompanyChart(month) {
                           pnl: { key: '손익', prevKey: '전년_손익', color: '#D85A30', step: 1, max: 4, min: 0 }
   };
   const cfg = metricMap[selectedMetric];
-  stepSize = cfg.step; maxValue = cfg.max; minValue = cfg.min;
+  const vv = [];
+  labels.forEach(m => { const c = DASHBOARD_DATA.company.find(x => x['월'] === m) || {}; vv.push((c[cfg.key] || 0) / 1e8, (c[cfg.prevKey] || 0) / 1e8); });
+  const nz = vv.filter(x => x !== 0);
+  let lo = nz.length ? Math.min(...nz) : 0, hi = nz.length ? Math.max(...nz) : 1;
+  if (selectedMetric !== 'attributed') lo = Math.min(lo, 0);
+  hi = Math.max(hi, 0);
+  const rng = (hi - lo) || 1;
+  let top = hi + rng * 0.3, bot = lo - rng * 0.2;
+  if (lo >= 0 && bot < 0) bot = 0;
+  const rawStep = (top - bot) / 6, pw = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  stepSize = [1, 2, 5, 10].map(k => k * pw).find(s => s >= rawStep);
+  minValue = Number((Math.floor(bot / stepSize) * stepSize).toFixed(6));
+  maxValue = Number((Math.ceil(top / stepSize) * stepSize).toFixed(6));
   datasets = [
 {
       label: { attributed: '매출액(귀속)', revenue: '실적매출', profit: '영업이익', pnl: '손익' }[selectedMetric],
