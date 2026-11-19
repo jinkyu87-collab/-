@@ -10,7 +10,10 @@
 ```
 reels-automation/
 ├─ install.bat          ← 처음 한 번 더블클릭 (설치)
-├─ make_reel.bat        ← 릴스 만들 때 더블클릭
+├─ make_reel.bat        ← 주제만 넣으면 AI가 대본까지 써서 릴스 제작
+├─ make_from_script.bat ← 직접 쓴 대본(scripts 폴더 txt)을 끌어다 놓으면 릴스 제작
+├─ upload_reel.bat      ← 만들어 둔 릴스 폴더를 끌어다 놓으면 인스타 업로드
+├─ scripts/             ← 직접 쓴 대본 (*별표* = 노란 강조 자막)
 ├─ .env.example         ← API 키 입력 양식 (설치하면 .env 로 복사됨)
 ├─ assets/backgrounds/  ← 배경 이미지·영상을 넣는 곳 (비워 두면 그라데이션)
 └─ output/              ← 완성된 릴스가 저장되는 곳

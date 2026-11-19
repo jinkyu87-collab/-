@@ -5,6 +5,7 @@
   python reels.py make "겨울철 전기요금 아끼는 법"   릴스 1개 만들기
   python reels.py make "주제" --upload         만들고 인스타그램에 바로 올리기
   python reels.py make --topics topics.txt    파일의 주제들로 여러 개 만들기
+  python reels.py make --script scripts\\대본.txt  직접 쓴 대본으로 만들기
   python reels.py upload output\\폴더이름      만들어 둔 릴스 올리기
   python reels.py voices                      쓸 수 있는 목소리 목록
   python reels.py ig-check                    인스타그램 계정 ID 찾기
@@ -29,28 +30,86 @@ def _slug(text: str) -> str:
     return re.sub(r"[^0-9A-Za-z가-힣]+", "_", text).strip("_")[:30] or "reel"
 
 
-def make_one(cfg: Config, topic: str, upload: bool) -> Path:
-    from reels_auto.script_writer import write_script
+def split_highlights(text: str) -> tuple[str, list[bool]]:
+    """*강조* 표시를 떼어 낸 문장과, 단어별 강조 여부."""
+    plain, flags, on = [], [], False
+    for ch in text:
+        if ch == "*":
+            on = not on
+            continue
+        plain.append(ch)
+        flags.append(on)
+    plain_text = "".join(plain)
+    word_flags, cur = [], None
+    for ch, f in zip(plain_text, flags):
+        if ch.isspace():
+            if cur is not None:
+                word_flags.append(cur)
+            cur = None
+        else:
+            cur = f if cur is None else (cur or f)
+    if cur is not None:
+        word_flags.append(cur)
+    return plain_text, word_flags
+
+
+def load_script_file(path: Path):
+    """직접 쓴 대본 파일 읽기. 형식:
+    제목: ...
+    내레이션:
+    (여러 줄)
+    캡션:
+    (여러 줄)
+    해시태그: #a #b
+    """
+    from reels_auto.script_writer import ReelScript
+
+    sections, key = {"제목": [], "내레이션": [], "캡션": [], "해시태그": []}, None
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        head = line.split(":", 1)[0].strip() if ":" in line else ""
+        if head in sections:
+            key = head
+            rest = line.split(":", 1)[1].strip()
+            if rest:
+                sections[key].append(rest)
+        elif key:
+            sections[key].append(line)
+    get = lambda k: "\n".join(sections[k]).strip()  # noqa: E731
+    if not get("제목") or not get("내레이션"):
+        sys.exit(f"대본 파일에 '제목:'과 '내레이션:'이 있어야 해요: {path}")
+    return ReelScript(title=get("제목"), narration=" ".join(get("내레이션").split()),
+                      caption=get("캡션"), hashtags=get("해시태그").split())
+
+
+def make_one(cfg: Config, topic: str | None, upload: bool, script_file: Path | None = None) -> Path:
     from reels_auto.tts import synthesize
     from reels_auto.video import render
 
-    work = cfg.output_dir / f"{datetime.now():%Y%m%d-%H%M%S}_{_slug(topic)}"
+    name = script_file.stem if script_file else topic
+    work = cfg.output_dir / f"{datetime.now():%Y%m%d-%H%M%S}_{_slug(name)}"
     (work / "frames").mkdir(parents=True, exist_ok=True)
 
-    print(f"\n▶ 주제: {topic}")
-    print("  1/3 대본 작성 중...")
-    script = write_script(cfg, topic)
-    caption = f"{script.caption}\n\n{' '.join(script.hashtags)}"
+    if script_file:
+        print(f"\n▶ 대본 파일: {script_file.name}")
+        print("  1/3 대본 읽는 중...")
+        script = load_script_file(script_file)
+    else:
+        from reels_auto.script_writer import write_script
+        print(f"\n▶ 주제: {topic}")
+        print("  1/3 대본 작성 중...")
+        script = write_script(cfg, topic)
+    caption = f"{script.caption}\n\n{' '.join(script.hashtags)}".strip()
     (work / "script.json").write_text(json.dumps(script.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8")
     (work / "caption.txt").write_text(caption, encoding="utf-8")
     print(f"      제목: {script.title}")
 
     print("  2/3 음성 만드는 중 (ElevenLabs)...")
-    narration = synthesize(cfg, script.narration, work / "voice.mp3")
+    spoken, highlights = split_highlights(script.narration)
+    narration = synthesize(cfg, spoken, work / "voice.mp3")
     print(f"      길이: {narration.duration:.1f}초")
 
     print("  3/3 영상 편집 중...")
-    video = render(cfg, script.title, narration, work / "frames", work / "reel.mp4")
+    video = render(cfg, script.title.replace("*", ""), narration, work / "frames", work / "reel.mp4", highlights)
     print(f"  ✅ 완성: {video}")
 
     if upload:
@@ -118,6 +177,7 @@ def main() -> None:
     m = sub.add_parser("make", help="릴스 만들기")
     m.add_argument("topic", nargs="?", help="릴스 주제")
     m.add_argument("--topics", help="주제 목록 파일 (한 줄에 하나)")
+    m.add_argument("--script", help="직접 쓴 대본 파일 (scripts 폴더 예시 참고)")
     m.add_argument("--upload", action="store_true", help="만든 뒤 인스타그램에 바로 올리기")
     u = sub.add_parser("upload", help="만들어 둔 릴스 올리기")
     u.add_argument("folder", help="output 안의 폴더 경로")
@@ -132,6 +192,10 @@ def main() -> None:
             topics = [args.topic] if args.topic else []
             if args.topics:
                 topics += [t.strip() for t in Path(args.topics).read_text(encoding="utf-8").splitlines() if t.strip()]
+            if args.script:
+                require(cfg, "eleven_key")
+                make_one(cfg, None, args.upload, Path(args.script))
+                return
             if not topics:
                 sys.exit('주제를 입력하세요. 예: python reels.py make "아침 루틴 5가지"')
             require(cfg, "anthropic_key", "eleven_key")

@@ -15,6 +15,10 @@ FPS = 30
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".webm"}
 
+WHITE = (255, 255, 255, 255)
+YELLOW = (255, 214, 0, 255)
+BLACK = (0, 0, 0, 255)
+
 FONT_CANDIDATES = [
     "C:/Windows/Fonts/malgunbd.ttf",   # 맑은 고딕 Bold (Windows 기본)
     "C:/Windows/Fonts/malgun.ttf",
@@ -32,42 +36,49 @@ def _font(cfg: Config, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default(size)
 
 
-def _wrap(draw, text, font, max_w):
-    lines, line = [], ""
-    for word in text.split():
-        trial = f"{line} {word}".strip()
-        if draw.textlength(trial, font=font) <= max_w or not line:
-            line = trial
-        else:
-            lines.append(line)
-            line = word
+def _layout(draw, words, font, max_w):
+    """(단어, 강조여부) 목록을 줄 단위로 나누기."""
+    space = draw.textlength(" ", font=font)
+    lines, line, line_w = [], [], 0.0
+    for word, hl in words:
+        w = draw.textlength(word, font=font)
+        if line and line_w + space + w > max_w:
+            lines.append((line, line_w))
+            line, line_w = [], 0.0
+        line_w += (space if line else 0) + w
+        line.append((word, hl, w))
     if line:
-        lines.append(line)
-    return "\n".join(lines)
+        lines.append((line, line_w))
+    return lines, space
 
 
-def _text_png(cfg, text, path, size, box=False):
+def _words_png(cfg, words, path, size, stroke, box_color=None, text_color=WHITE, pad=14):
+    """단어별 색(강조=노랑)을 지원하는 가운데 정렬 텍스트 이미지."""
     font = _font(cfg, size)
     probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
-    text = _wrap(probe, text, font, W - 160)
-    stroke = 0 if box else max(4, size // 10)
-    l, t, r, b = probe.multiline_textbbox((0, 0), text, font=font, stroke_width=stroke,
-                                          align="center", spacing=size // 4)
-    # 최신 Pillow는 소수점 좌표를 돌려주므로 정수로 맞춤
-    l, t, r, b = math.floor(l), math.floor(t), math.ceil(r), math.ceil(b)
-    pad = 36 if box else 10
-    img = Image.new("RGBA", (r - l + pad * 2, b - t + pad * 2), (0, 0, 0, 0))
+    lines, space = _layout(probe, words, font, W - 140)
+    ascent, descent = font.getmetrics()
+    line_h = ascent + descent + size // 6
+    width = math.ceil(max(lw for _, lw in lines)) + stroke * 2 + pad * 2
+    height = line_h * len(lines) + stroke * 2 + pad * 2
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    if box:
-        d.rounded_rectangle([0, 0, img.width - 1, img.height - 1], radius=28, fill=(0, 0, 0, 170))
-    d.multiline_text((pad - l, pad - t), text, font=font, fill=(255, 255, 255, 255),
-                     stroke_width=stroke, stroke_fill=(0, 0, 0, 255),
-                     align="center", spacing=size // 4)
+    if box_color:
+        d.rounded_rectangle([0, 0, width - 1, height - 1], radius=26, fill=box_color)
+    y = pad + stroke
+    for line, lw in lines:
+        x = (width - lw) / 2
+        for word, hl, w in line:
+            d.text((x, y), word, font=font, fill=YELLOW if hl else text_color,
+                   stroke_width=stroke, stroke_fill=BLACK)
+            x += w + space
+        y += line_h
     img.save(path)
 
 
-def _group_captions(words, max_chars=12):
-    """단어들을 화면에 한 번에 보여줄 짧은 자막 덩어리로 묶기."""
+def _group_captions(words, max_chars=11):
+    """단어들을 화면에 한 번에 보여줄 짧은 자막 덩어리로 묶기.
+    words: (단어, 시작, 끝, 강조여부)"""
     groups, cur = [], []
     for w in words:
         text = " ".join(x[0] for x in cur + [w])
@@ -75,7 +86,7 @@ def _group_captions(words, max_chars=12):
             groups.append(cur)
             cur = []
         cur.append(w)
-        if w[0][-1] in ".?!":
+        if w[0][-1] in ".?!,":
             groups.append(cur)
             cur = []
     if cur:
@@ -83,15 +94,16 @@ def _group_captions(words, max_chars=12):
     caps = []
     for i, g in enumerate(groups):
         start = g[0][1]
-        end = groups[i + 1][0][1] if i + 1 < len(groups) else g[-1][2] + 0.4
-        caps.append((" ".join(x[0] for x in g), start, end))
+        end = groups[i + 1][0][1] if i + 1 < len(groups) else g[-1][2] + 0.5
+        caps.append(([(x[0].rstrip(".,"), x[3]) for x in g], start, end))
     return caps
 
 
 def _gradient_bg(path: Path):
-    palettes = [((255, 94, 98), (255, 195, 113)), ((67, 97, 238), (76, 201, 240)),
-                ((17, 153, 142), (56, 239, 125)), ((142, 45, 226), (74, 0, 224)),
-                ((252, 70, 107), (63, 94, 251)), ((30, 30, 30), (90, 90, 110))]
+    # 신뢰감 있는 어두운 톤 위주 (밝은 자막이 잘 보이도록)
+    palettes = [((12, 20, 45), (35, 60, 120)), ((10, 10, 10), (55, 55, 70)),
+                ((20, 30, 30), (20, 90, 90)), ((40, 10, 20), (110, 30, 50)),
+                ((15, 25, 60), (70, 40, 110))]
     (r1, g1, b1), (r2, g2, b2) = random.choice(palettes)
     w, h = int(W * 1.15), int(H * 1.15)
     img = Image.new("RGB", (w, h))
@@ -111,34 +123,44 @@ def _pick_background(cfg: Config, work: Path) -> Path:
     return bg
 
 
-def render(cfg: Config, title: str, narration, work: Path, out_path: Path) -> Path:
+def render(cfg: Config, title: str, narration, work: Path, out_path: Path,
+           highlights: list[bool] | None = None) -> Path:
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
     dur = narration.duration
     bg = _pick_background(cfg, work)
     is_video = bg.suffix.lower() in VIDEO_EXT
+    # 배경은 어둡게 눌러서 글자가 확 튀게
+    dim = "eq=brightness=-0.18:saturation=0.9" if bg.parent == cfg.backgrounds_dir else "null"
 
     cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error"]
     if is_video:
         cmd += ["-stream_loop", "-1", "-i", str(bg)]
         bg_filter = (f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-                     f"fps={FPS},setsar=1,eq=brightness=-0.06[v0]")
+                     f"fps={FPS},setsar=1,{dim}[v0]")
     else:
         cmd += ["-loop", "1", "-framerate", str(FPS), "-i", str(bg)]
         bw, bh = int(W * 1.15), int(H * 1.15)
-        # 이미지는 천천히 옆으로 움직이는 효과
         bg_filter = (f"[0:v]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},"
                      f"crop={W}:{H}:x='(in_w-{W})*t/{dur:.2f}':y='(in_h-{H})/2',"
-                     f"setsar=1,eq=brightness=-0.06[v0]")
+                     f"setsar=1,{dim}[v0]")
     cmd += ["-i", str(narration.audio_path)]
 
-    overlays = []  # (png, y, start, end)
+    # 제목: 상단 노란 박스 + 검은 글씨
+    overlays = []  # (png, y식, start, end)
     title_png = work / "title.png"
-    _text_png(cfg, title, title_png, 78, box=True)
-    overlays.append((title_png, 240, None, None))
-    for i, (text, s, e) in enumerate(_group_captions(narration.words)):
+    _words_png(cfg, [(w, False) for w in title.split()], title_png, 76, stroke=0,
+               box_color=YELLOW, text_color=BLACK, pad=34)
+    overlays.append((title_png, "220", None, None))
+
+    words = narration.words
+    if highlights and len(highlights) == len(words):
+        words4 = [(w, s, e, hl) for (w, s, e), hl in zip(words, highlights)]
+    else:
+        words4 = [(w, s, e, False) for (w, s, e) in words]
+    for i, (cap_words, s, e) in enumerate(_group_captions(words4)):
         p = work / f"cap_{i:03d}.png"
-        _text_png(cfg, text, p, 86)
-        overlays.append((p, 1180, s, e))
+        _words_png(cfg, cap_words, p, 112, stroke=10)
+        overlays.append((p, "1000-h/2", s, e))
 
     filters, last = [bg_filter], "v0"
     for i, (png, y, s, e) in enumerate(overlays):

@@ -64,7 +64,8 @@ def synthesize(cfg: Config, text: str, out_path: Path) -> Narration:
 
     data = resp.json()
     out_path.write_bytes(base64.b64decode(data["audio_base64"]))
-    alignment = data.get("normalized_alignment") or data["alignment"]
+    # 원문 글자 기준 타이밍 사용 (normalized 쪽은 한국어가 영어 발음 표기로 바뀔 수 있음)
+    alignment = data.get("alignment") or data["normalized_alignment"]
     words = _words_from_alignment(alignment)
     duration = (alignment["character_end_times_seconds"][-1] if words else 0) + 0.6
     return Narration(out_path, duration, words)
