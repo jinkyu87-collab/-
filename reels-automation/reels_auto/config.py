@@ -20,7 +20,7 @@ def _get(name: str, default: str = "") -> str:
 class Config:
     anthropic_key: str = _get("ANTHROPIC_API_KEY")
     eleven_key: str = _get("ELEVENLABS_API_KEY")
-    voice_id: str = _get("ELEVENLABS_VOICE_ID", "vhhJX7dyal9WlYW2UAsj")
+    voice_id: str = _get("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")
     eleven_model: str = _get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
     ig_token: str = _get("IG_ACCESS_TOKEN")
     ig_user_id: str = _get("IG_USER_ID")

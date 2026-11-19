@@ -52,7 +52,10 @@ def synthesize(cfg: Config, text: str, out_path: Path) -> Narration:
     )
     if resp.status_code != 200:
         hint = ""
-        if resp.status_code == 401:
+        if resp.status_code == 402:
+            hint = (" → 무료 요금제에서는 Voice Library 목소리를 API로 못 써요. .env 의 "
+                    "ELEVENLABS_VOICE_ID 를 기본 목소리(예: EXAVITQu4vr4xnSDxMaL)로 바꾸거나 유료 요금제로 올리세요.")
+        elif resp.status_code == 401:
             hint = " → ELEVENLABS_API_KEY 를 확인하세요."
         elif "voice" in resp.text.lower():
             hint = (" → 목소리를 쓸 수 없어요. ElevenLabs Voice Library에서 해당 목소리를 "
