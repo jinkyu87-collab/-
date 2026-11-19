@@ -109,7 +109,15 @@ def make_one(cfg: Config, topic: str | None, upload: bool, script_file: Path | N
     print(f"      길이: {narration.duration:.1f}초")
 
     print("  3/3 영상 편집 중...")
-    video = render(cfg, script.title.replace("*", ""), narration, work / "frames", work / "reel.mp4", highlights)
+    scenes = None
+    if script_file:
+        img_dir = script_file.with_suffix("")
+        if img_dir.is_dir():
+            scenes = sorted(p for p in img_dir.iterdir() if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"})
+            if scenes:
+                print(f"      장면 이미지 {len(scenes)}장 사용: {img_dir.name}\\")
+    video = render(cfg, script.title.replace("*", ""), narration, work / "frames", work / "reel.mp4",
+                   highlights, scenes or None)
     print(f"  ✅ 완성: {video}")
 
     if upload:

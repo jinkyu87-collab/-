@@ -76,7 +76,7 @@ def _words_png(cfg, words, path, size, stroke, box_color=None, text_color=WHITE,
     img.save(path)
 
 
-def _group_captions(words, max_chars=11):
+def _group_captions(words, max_chars=13):
     """단어들을 화면에 한 번에 보여줄 짧은 자막 덩어리로 묶기.
     words: (단어, 시작, 끝, 강조여부)"""
     groups, cur = [], []
@@ -123,26 +123,69 @@ def _pick_background(cfg: Config, work: Path) -> Path:
     return bg
 
 
+def _scene_times(words, n_images, dur):
+    """문장 단위로 장면(이미지) 전환 시점 나누기."""
+    sent_starts, new_sent = [], True
+    for w, st, _e in words:
+        if new_sent:
+            sent_starts.append(st)
+        new_sent = w[-1] in ".?!"
+    if not sent_starts:
+        sent_starts = [0.0]
+    n = max(1, min(n_images, len(sent_starts)))
+    cuts = [0.0] + [sent_starts[round(i * len(sent_starts) / n)] for i in range(1, n)] + [dur]
+    return [(cuts[i], cuts[i + 1]) for i in range(n)]
+
+
 def render(cfg: Config, title: str, narration, work: Path, out_path: Path,
-           highlights: list[bool] | None = None) -> Path:
+           highlights: list[bool] | None = None, scene_images: list[Path] | None = None) -> Path:
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
     dur = narration.duration
-    bg = _pick_background(cfg, work)
-    is_video = bg.suffix.lower() in VIDEO_EXT
-    # 배경은 어둡게 눌러서 글자가 확 튀게
-    dim = "eq=brightness=-0.18:saturation=0.9" if bg.parent == cfg.backgrounds_dir else "null"
-
     cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error"]
-    if is_video:
-        cmd += ["-stream_loop", "-1", "-i", str(bg)]
-        bg_filter = (f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-                     f"fps={FPS},setsar=1,{dim}[v0]")
+    bw, bh = int(W * 1.12), int(H * 1.12)
+
+    if scene_images:
+        # 문장에 맞춰 이미지가 바뀌는 장면 모드 (천천히 움직이는 효과)
+        spans = _scene_times(narration.words, len(scene_images), dur)
+        parts, any_landscape = [], False
+        for i, (img, (s0, s1)) in enumerate(zip(scene_images, spans)):
+            seg = max(0.5, s1 - s0)
+            cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{seg:.3f}", "-i", str(img)]
+            xs = f"(in_w-{W})*t/{seg:.2f}" if i % 2 == 0 else f"(in_w-{W})*(1-t/{seg:.2f})"
+            with Image.open(img) as im:
+                landscape = im.width > im.height
+            if landscape:
+                # 가로 이미지: 흐린 배경 위에 선명한 이미지를 가운데 위쪽에 배치
+                any_landscape = True
+                parts.append(f"[{i}:v]split[a{i}][b{i}];"
+                             f"[a{i}]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                             f"boxblur=30:2,eq=brightness=-0.3[bg{i}];"
+                             f"[b{i}]scale={int(W * 1.12)}:-2,crop={W}:ih:x='{xs}':y=0[fg{i}];"
+                             f"[bg{i}][fg{i}]overlay=x=0:y=540,setsar=1,format=yuv420p[s{i}]")
+            else:
+                parts.append(f"[{i}:v]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},"
+                             f"crop={W}:{H}:x='{xs}':y='(in_h-{H})/2',setsar=1,"
+                             f"eq=brightness=-0.12:saturation=0.95,format=yuv420p[s{i}]")
+        n_bg = len(spans)
+        concat = "".join(f"[s{i}]" for i in range(n_bg))
+        bg_filter = ";".join(parts) + f";{concat}concat=n={n_bg}:v=1:a=0[v0]"
     else:
-        cmd += ["-loop", "1", "-framerate", str(FPS), "-i", str(bg)]
-        bw, bh = int(W * 1.15), int(H * 1.15)
-        bg_filter = (f"[0:v]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},"
-                     f"crop={W}:{H}:x='(in_w-{W})*t/{dur:.2f}':y='(in_h-{H})/2',"
-                     f"setsar=1,{dim}[v0]")
+        any_landscape = False
+        bg = _pick_background(cfg, work)
+        is_video = bg.suffix.lower() in VIDEO_EXT
+        # 사용자 배경은 어둡게 눌러서 글자가 확 튀게
+        dim = "eq=brightness=-0.18:saturation=0.9" if bg.parent == cfg.backgrounds_dir else "null"
+        n_bg = 1
+        if is_video:
+            cmd += ["-stream_loop", "-1", "-i", str(bg)]
+            bg_filter = (f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                         f"fps={FPS},setsar=1,{dim}[v0]")
+        else:
+            cmd += ["-loop", "1", "-framerate", str(FPS), "-i", str(bg)]
+            bg_filter = (f"[0:v]scale={bw}:{bh}:force_original_aspect_ratio=increase,crop={bw}:{bh},"
+                         f"crop={W}:{H}:x='(in_w-{W})*t/{dur:.2f}':y='(in_h-{H})/2',"
+                         f"setsar=1,{dim}[v0]")
+    audio_idx = n_bg
     cmd += ["-i", str(narration.audio_path)]
 
     # 제목: 상단 노란 박스 + 검은 글씨
@@ -160,16 +203,16 @@ def render(cfg: Config, title: str, narration, work: Path, out_path: Path,
     for i, (cap_words, s, e) in enumerate(_group_captions(words4)):
         p = work / f"cap_{i:03d}.png"
         _words_png(cfg, cap_words, p, 112, stroke=10)
-        overlays.append((p, "1000-h/2", s, e))
+        overlays.append((p, "1420-h/2" if any_landscape else "1000-h/2", s, e))
 
     filters, last = [bg_filter], "v0"
     for i, (png, y, s, e) in enumerate(overlays):
         cmd += ["-i", str(png)]
         enable = f":enable='between(t,{s:.3f},{e:.3f})'" if s is not None else ""
-        filters.append(f"[{last}][{i + 2}:v]overlay=x=(W-w)/2:y={y}{enable}[v{i + 1}]")
+        filters.append(f"[{last}][{i + audio_idx + 1}:v]overlay=x=(W-w)/2:y={y}{enable}[v{i + 1}]")
         last = f"v{i + 1}"
 
-    cmd += ["-filter_complex", ";".join(filters), "-map", f"[{last}]", "-map", "1:a",
+    cmd += ["-filter_complex", ";".join(filters), "-map", f"[{last}]", "-map", f"{audio_idx}:a",
             "-t", f"{dur:.2f}", "-r", str(FPS),
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
