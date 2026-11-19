@@ -84,7 +84,7 @@ python reels.py check
 
 - `CHANNEL_CONCEPT`: 계정 콘셉트예요. 대본 톤이 여기에 맞춰져요.
 - `TARGET_SECONDS`: 영상 길이예요. 기본값은 35초예요.
-- `ELEVENLABS_VOICE_ID`: 목소리예요. 기본값은 Yeonhee(밝은 한국어 여성 목소리)예요.
+- `ELEVENLABS_VOICE_ID`: 목소리예요. 기본값은 Sarah(무료 요금제에서도 쓸 수 있는 기본 목소리, 한국어로 읽어요)예요. 유료 요금제라면 한국어 원어민 목소리 Yeonhee(`vhhJX7dyal9WlYW2UAsj`)를 추천해요.
 
 ## 4. 인스타그램 연동 (자동 업로드용)
 
