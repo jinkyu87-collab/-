@@ -111,11 +111,19 @@ def make_one(cfg: Config, topic: str | None, upload: bool, script_file: Path | N
     print("  3/3 영상 편집 중...")
     scenes = None
     if script_file:
+        script_file = script_file.resolve()
         img_dir = script_file.with_suffix("")
+        if not img_dir.is_dir():
+            # 폴더 이름이 조금 달라도 앞 번호(예: 01_)가 같으면 사용
+            prefix = script_file.stem.split("_")[0] + "_"
+            cands = [d for d in script_file.parent.iterdir() if d.is_dir() and d.name.startswith(prefix)]
+            img_dir = cands[0] if cands else img_dir
         if img_dir.is_dir():
             scenes = sorted(p for p in img_dir.iterdir() if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"})
-            if scenes:
-                print(f"      장면 이미지 {len(scenes)}장 사용: {img_dir.name}\\")
+        if scenes:
+            print(f"      장면 이미지 {len(scenes)}장 사용: {img_dir}")
+        else:
+            print(f"      [안내] 이미지 폴더를 못 찾아 기본 배경으로 만들어요: {img_dir}")
     video = render(cfg, script.title.replace("*", ""), narration, work / "frames", work / "reel.mp4",
                    highlights, scenes or None)
     print(f"  ✅ 완성: {video}")
