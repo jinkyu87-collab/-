@@ -1,0 +1,6 @@
+anthropic>=0.70
+pydantic>=2
+requests>=2.31
+python-dotenv>=1.0
+pillow>=10
+imageio-ffmpeg>=0.5
