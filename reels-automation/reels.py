@@ -195,6 +195,8 @@ def main() -> None:
     m.add_argument("--topics", help="주제 목록 파일 (한 줄에 하나)")
     m.add_argument("--script", help="직접 쓴 대본 파일 (scripts 폴더 예시 참고)")
     m.add_argument("--upload", action="store_true", help="만든 뒤 인스타그램에 바로 올리기")
+    fs = sub.add_parser("from-script", help="대본 파일 골라서 만들기 (번호 선택)")
+    fs.add_argument("file", nargs="?", default="", help="대본 파일 (비우면 목록에서 번호로 선택)")
     u = sub.add_parser("upload", help="만들어 둔 릴스 올리기")
     u.add_argument("folder", help="output 안의 폴더 경로")
     sub.add_parser("check", help="설정 확인")
@@ -220,6 +222,22 @@ def main() -> None:
             require(cfg, "anthropic_key", "eleven_key")
             for t in topics:
                 make_one(cfg, t, args.upload)
+        elif args.cmd == "from-script":
+            path = Path(args.file) if args.file else None
+            if not path or not path.exists():
+                files = sorted(f for f in (Path(__file__).parent / "scripts").glob("*.txt") if f.name != "README.txt")
+                if not files:
+                    sys.exit("scripts 폴더에 대본 txt 파일이 없어요.")
+                print("\n[대본 목록]")
+                for i, f in enumerate(files, 1):
+                    print(f"  {i}. {f.name}")
+                pick = input("\n만들 대본 번호를 입력하세요: ").strip()
+                if not pick.isdigit() or not 1 <= int(pick) <= len(files):
+                    sys.exit("번호를 잘못 입력했어요.")
+                path = files[int(pick) - 1]
+            up = input("인스타그램에 바로 올릴까요? (y/n): ").strip().lower() == "y"
+            require(cfg, "eleven_key")
+            make_one(cfg, None, up, path)
         elif args.cmd == "upload":
             do_upload(cfg, Path(args.folder))
         elif args.cmd == "check":
