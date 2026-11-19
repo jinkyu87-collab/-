@@ -1,4 +1,5 @@
 """배경 + 음성 + 자막을 합쳐 세로(1080x1920) 릴스 영상 만들기."""
+import math
 import random
 import subprocess
 import sys
@@ -52,6 +53,8 @@ def _text_png(cfg, text, path, size, box=False):
     stroke = 0 if box else max(4, size // 10)
     l, t, r, b = probe.multiline_textbbox((0, 0), text, font=font, stroke_width=stroke,
                                           align="center", spacing=size // 4)
+    # 최신 Pillow는 소수점 좌표를 돌려주므로 정수로 맞춤
+    l, t, r, b = math.floor(l), math.floor(t), math.ceil(r), math.ceil(b)
     pad = 36 if box else 10
     img = Image.new("RGBA", (r - l + pad * 2, b - t + pad * 2), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
