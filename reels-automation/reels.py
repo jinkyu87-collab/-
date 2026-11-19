@@ -208,6 +208,9 @@ def main() -> None:
             topics = [args.topic] if args.topic else []
             if args.topics:
                 topics += [t.strip() for t in Path(args.topics).read_text(encoding="utf-8").splitlines() if t.strip()]
+            # 주제 칸에 대본 파일(.txt) 경로를 넣은 경우에도 대본 모드로 처리
+            if not args.script and args.topic and args.topic.lower().endswith(".txt") and Path(args.topic).exists():
+                args.script, args.topic = args.topic, None
             if args.script:
                 require(cfg, "eleven_key")
                 make_one(cfg, None, args.upload, Path(args.script))
