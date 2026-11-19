@@ -7,11 +7,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / ".env", override=True)
+# 다른 프로그램이 남긴 Claude 로그인 토큰이 키 대신 쓰이지 않도록 제거
+os.environ.pop("ANTHROPIC_AUTH_TOKEN", None)
 
 
 def _get(name: str, default: str = "") -> str:
-    return os.getenv(name, default).strip()
+    return os.getenv(name, default).strip().strip('"').strip("'").strip()
 
 
 @dataclass

@@ -31,14 +31,24 @@ def write_script(cfg: Config, topic: str) -> ReelScript:
         f"주제: {topic}\n\n"
         f"약 {cfg.target_seconds}초 길이(내레이션 {chars - 30}~{chars + 30}자)의 릴스 대본을 작성해 주세요."
     )
-    response = client.messages.parse(
-        model=MODEL,
-        max_tokens=16000,
-        system=SYSTEM,
-        output_config={"effort": "low"},
-        messages=[{"role": "user", "content": prompt}],
-        output_format=ReelScript,
-    )
+    try:
+        response = client.messages.parse(
+            model=MODEL,
+            max_tokens=16000,
+            system=SYSTEM,
+            output_config={"effort": "low"},
+            messages=[{"role": "user", "content": prompt}],
+            output_format=ReelScript,
+        )
+    except anthropic.AuthenticationError:
+        raise RuntimeError("Claude API 키가 올바르지 않아요. .env 의 ANTHROPIC_API_KEY 가 "
+                           "'sk-ant-api03-' 로 시작하는 키인지 확인하세요 (https://platform.claude.com/settings/keys).")
+    except anthropic.PermissionDeniedError as e:
+        raise RuntimeError(f"Claude API 권한 오류: {e.message}")
+    except anthropic.BadRequestError as e:
+        if "credit" in str(e).lower():
+            raise RuntimeError("Claude API 크레딧이 부족해요. https://platform.claude.com 의 Billing 에서 충전하세요.")
+        raise
     if response.stop_reason == "refusal" or response.parsed_output is None:
         raise RuntimeError(f"대본을 만들지 못했어요 (stop_reason={response.stop_reason}). 주제를 바꿔 보세요.")
     script = response.parsed_output

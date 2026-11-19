@@ -77,7 +77,9 @@ def cmd_check(cfg: Config) -> None:
     from reels_auto.video import _font
 
     ok = lambda b: "✅" if b else "❌"  # noqa: E731
-    print(f"{ok(cfg.anthropic_key)} ANTHROPIC_API_KEY (대본)")
+    print(f"{ok(cfg.anthropic_key.startswith('sk-ant-api'))} ANTHROPIC_API_KEY (대본)"
+          + ("" if not cfg.anthropic_key or cfg.anthropic_key.startswith("sk-ant-api")
+             else "  ← 'sk-ant-api03-' 로 시작해야 해요. 다른 키를 넣은 것 같아요"))
     print(f"{ok(cfg.eleven_key)} ELEVENLABS_API_KEY (음성)")
     print(f"{ok(cfg.ig_token and cfg.ig_user_id)} IG_ACCESS_TOKEN / IG_USER_ID (업로드 - 선택)")
     print(f"✅ ffmpeg: {imageio_ffmpeg.get_ffmpeg_exe()}")
