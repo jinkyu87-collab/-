@@ -47,7 +47,8 @@ def synthesize(cfg: Config, text: str, out_path: Path) -> Narration:
             "text": text,
             "model_id": cfg.eleven_model,
             "voice_settings": {"stability": 0.6, "similarity_boost": 0.8, "style": 0.0,
-                               "use_speaker_boost": True},
+                               "use_speaker_boost": True,
+                               "speed": max(0.7, min(1.2, cfg.voice_speed))},
         },
         timeout=180,
     )

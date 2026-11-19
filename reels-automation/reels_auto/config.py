@@ -22,6 +22,8 @@ class Config:
     eleven_key: str = _get("ELEVENLABS_API_KEY")
     voice_id: str = _get("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")
     eleven_model: str = _get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
+    # 말하기 속도 (0.7 = 느리게 ~ 1.2 = 빠르게, 기본 0.88)
+    voice_speed: float = float(_get("VOICE_SPEED", "0.88") or 0.88)
     ig_token: str = _get("IG_ACCESS_TOKEN")
     ig_user_id: str = _get("IG_USER_ID")
     graph_version: str = _get("IG_GRAPH_VERSION", "v23.0")
